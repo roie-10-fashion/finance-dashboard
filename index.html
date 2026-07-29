@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ניהול כספים - RMB / USD / ILS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    background: #f7f7f8;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 20px;
+    direction: rtl;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: #666; margin: 0 0 20px; font-size: 13px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: #333; }
+  .full { grid-column: 1 / -1; }
+  label {
+    display: block;
+    font-size: 12px;
+    color: #555;
+    margin: 8px 0 3px;
+  }
+  input, select {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid #d7d7d9;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fafafa;
+  }
+  input:focus, select:focus { outline: 2px solid #c7a6ff; border-color: #a875ff; background: #fff; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  button {
+    margin-top: 14px;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 9px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover { background: #6d28d9; }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  button.secondary { background: #fff; color: #7c3aed; border: 1px solid #7c3aed; }
+  button.secondary:hover { background: #f5eeff; }
+  button.danger { background: #fff; color: #c0392b; border: 1px solid #e0b4ac; padding: 4px 9px; margin: 0; font-size: 12px; }
+  button.danger:hover { background: #fdecec; }
+  button.small-secondary { background: #fff; color: #7c3aed; border: 1px solid #7c3aed; padding: 4px 9px; margin: 0 4px 0 0; font-size: 12px; }
+  button.small-secondary:hover { background: #f5eeff; }
+  .chip { margin: 4px 4px 0 0; padding: 5px 12px; font-size: 12px; background: #fff; border: 1px solid #d7c3ff; color: #7c3aed; border-radius: 20px; cursor: pointer; font-weight: 500; }
+  .chip:hover { background: #f5eeff; }
+  .item-row { display: grid; grid-template-columns: 1fr 130px 34px; gap: 8px; align-items: center; margin-top: 8px; }
+  .item-row input { margin: 0; }
+  .item-remove { background: #fff; color: #c0392b; border: 1px solid #e0b4ac; border-radius: 6px; padding: 6px; margin: 0; font-size: 13px; cursor: pointer; height: 32px; }
+  .items-total { margin-top: 8px; font-size: 12.5px; }
+  .summary-box {
+    background: #faf5ff;
+    border: 1px solid #e6d6ff;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    font-size: 13px;
+    line-height: 1.9;
+  }
+  .summary-box b { color: #5b21b6; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+  th, td { padding: 7px 8px; text-align: right; border-bottom: 1px solid #eee; }
+  th { color: #666; font-weight: 600; background: #fafafa; }
+  tr:hover td { background: #fbf8ff; }
+  .neg { color: #c0392b; font-weight: 600; }
+  .pos { color: #1a8f4c; font-weight: 600; }
+  .muted { color: #888; font-size: 12px; }
+  .rate-note { font-size: 11.5px; color: #888; margin-top: 2px; }
+  .conv-result { font-size: 16px; font-weight: 700; color: #5b21b6; margin-top: 10px; }
+  canvas { max-height: 260px; }
+  .saved-flash {
+    display: inline-block;
+    margin-right: 10px;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .saved-flash.show { opacity: 1; }
+  .saved-flash.ok { color: #1a8f4c; }
+  .saved-flash.err { color: #c0392b; }
+  .conn-status { font-size: 12.5px; margin-top: 10px; padding: 8px 10px; border-radius: 6px; }
+  .conn-status.on { background: #eafaf0; color: #1a8f4c; border: 1px solid #bfe8cf; }
+  .conn-status.off { background: #fff7e6; color: #92650a; border: 1px solid #f0d9a6; }
+  #loadingBanner { max-width: 1100px; margin: 0 auto 16px; text-align: center; color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>ניהול כספים חודשי — RMB · USD · ILS</h1>
+<p class="subtitle">האתר נגיש מכל מכשיר. הנתונים נשמרים בקובץ data.json בריפו הזה ב-GitHub.</p>
+
+<div id="loadingBanner">טוען נתונים...</div>
+
+<div class="grid" id="mainGrid" style="display:none;">
+
+  <!-- Connection -->
+  <div class="card full">
+    <h2>חיבור לשמירה</h2>
+    <label>טוקן GitHub (נשמר רק בדפדפן הזה, לא מועלה לריפו)</label>
+    <input type="password" id="ghToken" placeholder="github_pat_...">
+    <button onclick="saveToken()">שמור טוקן במכשיר זה</button>
+    <button class="secondary" onclick="clearToken()">נתק</button>
+    <div class="conn-status" id="connStatus"></div>
+  </div>
+
+  <!-- Exchange rates -->
+  <div class="card">
+    <h2>שערי המרה</h2>
+    <div class="row2">
+      <div>
+        <label>USD → ILS (כמה ש"ח לדולר)</label>
+        <input type="number" id="rateUsdIls" step="0.0001">
+      </div>
+      <div>
+        <label>USD → CNY (כמה יואן לדולר)</label>
+        <input type="number" id="rateUsdCny" step="0.0001">
+      </div>
+    </div>
+    <div class="rate-note">שער CNY↔ILS נגזר אוטומטית מהשניים האלה. עדכן ידנית לפי הבנק/הפלטפורמה שבה אתה ממיר בפועל.</div>
+    <div class="rate-note" id="derivedRate"></div>
+    <button onclick="saveRates()" id="saveRatesBtn">שמור שערים</button>
+    <span class="saved-flash" id="rateSaved"></span>
+  </div>
+
+  <!-- Quick converter -->
+  <div class="card">
+    <h2>המרה מהירה</h2>
+    <label>סכום</label>
+    <input type="number" id="convAmount" value="1000">
+    <div class="row2">
+      <div>
+        <label>ממטבע</label>
+        <select id="convFrom">
+          <option value="ILS">ש"ח (ILS)</option>
+          <option value="USD">דולר (USD)</option>
+          <option value="CNY">יואן (RMB/CNY)</option>
+        </select>
+      </div>
+      <div>
+        <label>למטבע</label>
+        <select id="convTo">
+          <option value="CNY">יואן (RMB/CNY)</option>
+          <option value="ILS">ש"ח (ILS)</option>
+          <option value="USD">דולר (USD)</option>
+        </select>
+      </div>
+    </div>
+    <div class="conv-result" id="convResult"></div>
+  </div>
+
+  <!-- Monthly entry -->
+  <div class="card full">
+    <h2>הזנה חודשית</h2>
+    <label>חודש</label>
+    <input type="month" id="monthPicker">
+
+    <label style="margin-top:14px; font-weight:600; color:#333;">הוצאות / הורדות מהבנק החודש — כל פריט בנפרד (בש"ח)</label>
+    <div>
+      <button type="button" class="chip" onclick="addItem('כרטיס אשראי')">+ כרטיס אשראי</button>
+      <button type="button" class="chip" onclick="addItem('מחסן')">+ מחסן</button>
+      <button type="button" class="chip" onclick="addItem('טלפון')">+ טלפון</button>
+      <button type="button" class="chip" onclick="addItem('שכירות')">+ שכירות</button>
+      <button type="button" class="chip" onclick="addItem('')">+ פריט חופשי</button>
+    </div>
+    <div id="itemsContainer"></div>
+    <div class="items-total muted" id="itemsTotal"></div>
+
+    <label style="margin-top:14px; font-weight:600; color:#333;">משכורת / הכנסות שהתקבלו החודש</label>
+    <div class="row3">
+      <div>
+        <label>ב-RMB</label>
+        <input type="number" id="salaryRmb" placeholder="0">
+      </div>
+      <div>
+        <label>ב-USD</label>
+        <input type="number" id="salaryUsd" placeholder="0">
+      </div>
+      <div>
+        <label>ב-ILS</label>
+        <input type="number" id="salaryIls" placeholder="0">
+      </div>
+    </div>
+
+    <label style="margin-top:14px;">בפועל הועבר לישראל החודש (בש"ח, אופציונלי)</label>
+    <input type="number" id="transferredIls" placeholder="0">
+
+    <div class="summary-box" id="liveSummary"></div>
+
+    <button onclick="saveMonth()" id="saveMonthBtn">שמור חודש</button>
+    <button class="secondary" onclick="clearForm()">נקה טופס</button>
+    <span class="saved-flash" id="monthSaved"></span>
+  </div>
+
+  <!-- History -->
+  <div class="card full">
+    <h2>היסטוריה חודשית</h2>
+    <div id="historyEmpty" class="muted">עדיין אין נתונים שמורים — הזן חודש ראשון למעלה.</div>
+    <table id="historyTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>חודש</th>
+          <th>הכנסות (ש"ח)</th>
+          <th>הוצאות (ש"ח)</th>
+          <th>יתרה</th>
+          <th>נדרש להעביר (RMB)</th>
+          <th>הועבר בפועל (ש"ח)</th>
+          <th>פער</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="historyBody"></tbody>
+    </table>
+    <div style="margin-top:16px;">
+      <canvas id="historyChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const OWNER = 'roie-10-fashion';
+const REPO = 'finance-dashboard';
+const DATA_PATH = 'data.json';
+const BRANCH = 'main';
+const API_BASE = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${DATA_PATH}`;
+const TOKEN_KEY = 'financeGhToken_v1';
+
+let state = { rates: { usdIls: 3.06, usdCny: 6.77 }, months: {} };
+let currentSha = null;
+let currentItems = [];
+let chart = null;
+
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+
+function saveToken() {
+  const t = document.getElementById('ghToken').value.trim();
+  if (!t) { alert('הדבק טוקן קודם'); return; }
+  localStorage.setItem(TOKEN_KEY, t);
+  document.getElementById('ghToken').value = '';
+  updateConnStatus();
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  updateConnStatus();
+}
+
+function updateConnStatus() {
+  const el = document.getElementById('connStatus');
+  const has = !!getToken();
+  el.textContent = has
+    ? 'מחובר ✓ — שמירה פעילה במכשיר הזה'
+    : 'לא מחובר — אפשר לצפות בנתונים אך לא לשמור שינויים. הדבק טוקן ולחץ "שמור טוקן".';
+  el.className = 'conn-status ' + (has ? 'on' : 'off');
+  document.getElementById('saveRatesBtn').disabled = !has;
+  document.getElementById('saveMonthBtn').disabled = !has;
+}
+
+function b64EncodeUtf8(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function b64DecodeUtf8(b64) {
+  return decodeURIComponent(escape(atob(b64.replace(/\n/g, ''))));
+}
+
+async function fetchRemoteData() {
+  const res = await fetch(`${API_BASE}?ref=${BRANCH}&_=${Date.now()}`, {
+    headers: { 'Accept': 'application/vnd.github+json' }
+  });
+  if (res.status === 404) {
+    currentSha = null;
+    return { rates: { usdIls: 3.06, usdCny: 6.77 }, months: {} };
+  }
+  if (!res.ok) throw new Error('שגיאה בטעינת נתונים (' + res.status + ')');
+  const json = await res.json();
+  currentSha = json.sha;
+  const parsed = JSON.parse(b64DecodeUtf8(json.content));
+  if (!parsed.rates) parsed.rates = { usdIls: 3.06, usdCny: 6.77 };
+  if (!parsed.months) parsed.months = {};
+  return parsed;
+}
+
+async function pushRemoteData(newState, attempt) {
+  const token = getToken();
+  if (!token) { alert('אין טוקן שמור — הדבק טוקן GitHub קודם כדי לשמור.'); return false; }
+  const body = {
+    message: 'עדכון נתוני כספים - ' + new Date().toISOString(),
+    content: b64EncodeUtf8(JSON.stringify(newState, null, 2)),
+    branch: BRANCH
+  };
+  if (currentSha) body.sha = currentSha;
+  const res = await fetch(API_BASE, {
+    method: 'PUT',
+    headers: {
+      'Accept': 'application/vnd.github+json',
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (res.status === 409 && !attempt) {
+    // stale sha - refetch and retry once
+    await fetchRemoteData();
+    return pushRemoteData(newState, 1);
+  }
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error('שמירה נכשלה (' + res.status + '): ' + errText.slice(0, 200));
+  }
+  const json = await res.json();
+  currentSha = json.content.sha;
+  return true;
+}
+
+function fmt(n) {
+  if (n === undefined || n === null || isNaN(n)) return '0';
+  return Number(n).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+}
+
+function cnyIlsRate() { return state.rates.usdIls / state.rates.usdCny; }
+
+function toILS(amount, currency) {
+  amount = Number(amount) || 0;
+  if (currency === 'ILS') return amount;
+  if (currency === 'USD') return amount * state.rates.usdIls;
+  if (currency === 'CNY') return amount * cnyIlsRate();
+  return amount;
+}
+
+function convert(amount, from, to) {
+  const ils = toILS(amount, from);
+  if (to === 'ILS') return ils;
+  if (to === 'USD') return ils / state.rates.usdIls;
+  if (to === 'CNY') return ils / cnyIlsRate();
+  return ils;
+}
+
+function escapeHtml(s) {
+  if (s === undefined || s === null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderItemsUI() {
+  const container = document.getElementById('itemsContainer');
+  container.innerHTML = '';
+  currentItems.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input type="text" placeholder="שם הפריט (למשל: כרטיס אשראי ויזה)" value="${escapeHtml(item.name)}" oninput="updateItemField(${idx},'name',this.value)">
+      <input type="number" placeholder="סכום" value="${item.amount === '' || item.amount === undefined || item.amount === null ? '' : item.amount}" oninput="updateItemField(${idx},'amount',this.value)">
+      <button type="button" class="item-remove" onclick="removeItem(${idx})">✕</button>
+    `;
+    container.appendChild(row);
+  });
+  updateItemsTotal();
+}
+
+function addItem(name = '', amount = '') {
+  currentItems.push({ name, amount });
+  renderItemsUI();
+  updateLiveSummary();
+  setTimeout(() => {
+    const rows = document.querySelectorAll('#itemsContainer .item-row');
+    const last = rows[rows.length - 1];
+    if (last) {
+      const inputs = last.querySelectorAll('input');
+      const target = name ? inputs[1] : inputs[0];
+      if (target) target.focus();
+    }
+  }, 0);
+}
+
+function removeItem(idx) {
+  currentItems.splice(idx, 1);
+  renderItemsUI();
+  updateLiveSummary();
+}
+
+function updateItemField(idx, field, value) {
+  currentItems[idx][field] = value;
+  updateItemsTotal();
+  updateLiveSummary();
+}
+
+function updateItemsTotal() {
+  const total = currentItems.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+  document.getElementById('itemsTotal').textContent = currentItems.length
+    ? `סה"כ ${currentItems.length} פריטים: ${fmt(total)} ₪`
+    : 'אין עדיין פריטים - הוסף למעלה (כרטיס אשראי, מחסן, טלפון וכו׳).';
+}
+
+function initRateInputs() {
+  document.getElementById('rateUsdIls').value = state.rates.usdIls;
+  document.getElementById('rateUsdCny').value = state.rates.usdCny;
+  updateDerivedRate();
+}
+
+function updateDerivedRate() {
+  const r = cnyIlsRate();
+  document.getElementById('derivedRate').textContent =
+    `1 RMB ≈ ${r.toFixed(4)} ש"ח   |   1 ש"ח ≈ ${(1/r).toFixed(4)} RMB`;
+}
+
+function flash(id, ok, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'saved-flash show ' + (ok ? 'ok' : 'err');
+  setTimeout(() => { el.classList.remove('show'); }, 3000);
+}
+
+async function saveRates() {
+  const btn = document.getElementById('saveRatesBtn');
+  state.rates.usdIls = parseFloat(document.getElementById('rateUsdIls').value) || state.rates.usdIls;
+  state.rates.usdCny = parseFloat(document.getElementById('rateUsdCny').value) || state.rates.usdCny;
+  btn.disabled = true; btn.textContent = 'שומר...';
+  try {
+    await pushRemoteData(state);
+    flash('rateSaved', true, 'נשמר ✓');
+  } catch (e) {
+    flash('rateSaved', false, e.message);
+  }
+  btn.disabled = false; btn.textContent = 'שמור שערים';
+  updateDerivedRate();
+  updateConverter();
+  updateLiveSummary();
+  renderHistory();
+}
+
+function updateConverter() {
+  const amount = parseFloat(document.getElementById('convAmount').value) || 0;
+  const from = document.getElementById('convFrom').value;
+  const to = document.getElementById('convTo').value;
+  const result = convert(amount, from, to);
+  const labels = { ILS: 'ש"ח', USD: 'דולר', CNY: 'RMB' };
+  document.getElementById('convResult').textContent =
+    `${fmt(amount)} ${labels[from]} = ${fmt(result)} ${labels[to]}`;
+}
+
+function currentMonthStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function clearForm() {
+  document.getElementById('monthPicker').value = currentMonthStr();
+  currentItems = [];
+  renderItemsUI();
+  ['salaryRmb','salaryUsd','salaryIls','transferredIls'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  updateLiveSummary();
+}
+
+function computeMonth(m) {
+  const items = m.items || [];
+  const totalExpensesILS = items.length
+    ? items.reduce((s, it) => s + (parseFloat(it.amount) || 0), 0)
+    : (Number(m.bankFixed)||0) + (Number(m.bankVariable)||0);
+  const totalIncomeILS = (Number(m.salaryIls)||0)
+    + toILS(m.salaryUsd, 'USD')
+    + toILS(m.salaryRmb, 'CNY');
+  const netILS = totalIncomeILS - totalExpensesILS;
+  const neededRMB = totalExpensesILS / cnyIlsRate();
+  const transferred = Number(m.transferredIls) || 0;
+  const diff = transferred - totalExpensesILS;
+  return { totalExpensesILS, totalIncomeILS, netILS, neededRMB, transferred, diff, itemCount: items.length };
+}
+
+function updateLiveSummary() {
+  const m = {
+    items: currentItems,
+    salaryRmb: document.getElementById('salaryRmb').value,
+    salaryUsd: document.getElementById('salaryUsd').value,
+    salaryIls: document.getElementById('salaryIls').value,
+    transferredIls: document.getElementById('transferredIls').value
+  };
+  const c = computeMonth(m);
+  const box = document.getElementById('liveSummary');
+  box.innerHTML = `
+    סה"כ הכנסות (מומר לש"ח): <b>${fmt(c.totalIncomeILS)} ₪</b><br>
+    סה"כ הוצאות/הורדות (${c.itemCount} פריטים): <b>${fmt(c.totalExpensesILS)} ₪</b><br>
+    יתרה חודשית: <b class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)} ₪</b><br>
+    כדי לכסות את ההוצאות בישראל, צריך להמיר/להעביר בערך: <b>${fmt(c.neededRMB)} RMB</b>
+    ${m.transferredIls ? `<br>הועבר בפועל: <b>${fmt(c.transferred)} ₪</b> — פער מול הנדרש: <b class="${c.diff>=0?'pos':'neg'}">${fmt(c.diff)} ₪</b>` : ''}
+  `;
+}
+
+async function saveMonth() {
+  const btn = document.getElementById('saveMonthBtn');
+  const month = document.getElementById('monthPicker').value || currentMonthStr();
+  const items = currentItems
+    .filter(it => (it.name && it.name.trim()) || (parseFloat(it.amount) || 0) !== 0)
+    .map(it => ({ name: (it.name || '').trim() || 'פריט ללא שם', amount: parseFloat(it.amount) || 0 }));
+  const m = {
+    month,
+    items,
+    salaryRmb: parseFloat(document.getElementById('salaryRmb').value) || 0,
+    salaryUsd: parseFloat(document.getElementById('salaryUsd').value) || 0,
+    salaryIls: parseFloat(document.getElementById('salaryIls').value) || 0,
+    transferredIls: parseFloat(document.getElementById('transferredIls').value) || 0,
+    ratesAtSave: { ...state.rates }
+  };
+  if (state.months[month]) {
+    if (!confirm(`כבר יש נתונים שמורים לחודש ${month}. לדרוס אותם?`)) return;
+  }
+  state.months[month] = m;
+  btn.disabled = true; btn.textContent = 'שומר...';
+  try {
+    await pushRemoteData(state);
+    flash('monthSaved', true, 'נשמר ✓');
+  } catch (e) {
+    flash('monthSaved', false, e.message);
+  }
+  btn.disabled = false; btn.textContent = 'שמור חודש';
+  renderHistory();
+}
+
+function loadMonthToForm(month) {
+  const m = state.months[month];
+  if (!m) return;
+  document.getElementById('monthPicker').value = month;
+  currentItems = (m.items || []).map(it => ({ name: it.name, amount: it.amount }));
+  document.getElementById('salaryRmb').value = m.salaryRmb || '';
+  document.getElementById('salaryUsd').value = m.salaryUsd || '';
+  document.getElementById('salaryIls').value = m.salaryIls || '';
+  document.getElementById('transferredIls').value = m.transferredIls || '';
+  renderItemsUI();
+  updateLiveSummary();
+  document.getElementById('monthPicker').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function deleteMonth(month) {
+  if (!confirm(`למחוק את הנתונים של ${month}?`)) return;
+  delete state.months[month];
+  try {
+    await pushRemoteData(state);
+  } catch (e) {
+    alert('מחיקה נכשלה: ' + e.message);
+    return;
+  }
+  renderHistory();
+}
+
+function renderHistory() {
+  const months = Object.keys(state.months).sort();
+  const table = document.getElementById('historyTable');
+  const empty = document.getElementById('historyEmpty');
+  const tbody = document.getElementById('historyBody');
+  tbody.innerHTML = '';
+
+  if (months.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    if (chart) { chart.destroy(); chart = null; }
+    return;
+  }
+  empty.style.display = 'none';
+  table.style.display = 'table';
+
+  const incomeArr = [], expenseArr = [];
+
+  months.forEach(month => {
+    const m = state.months[month];
+    const c = computeMonth(m);
+    incomeArr.push(c.totalIncomeILS);
+    expenseArr.push(c.totalExpensesILS);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${month}</td>
+      <td>${fmt(c.totalIncomeILS)}</td>
+      <td>${fmt(c.totalExpensesILS)} <span class="muted" style="font-size:11px;">(${c.itemCount} פריטים)</span></td>
+      <td class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)}</td>
+      <td>${fmt(c.neededRMB)}</td>
+      <td>${m.transferredIls ? fmt(c.transferred) : '—'}</td>
+      <td class="${m.transferredIls ? (c.diff>=0?'pos':'neg') : ''}">${m.transferredIls ? fmt(c.diff) : '—'}</td>
+      <td style="white-space:nowrap;">
+        <button class="small-secondary" onclick="loadMonthToForm('${month}')">ערוך</button>
+        <button class="danger" onclick="deleteMonth('${month}')">מחק</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'הכנסות (ש"ח)', data: incomeArr, backgroundColor: '#7c3aed' },
+        { label: 'הוצאות (ש"ח)', data: expenseArr, backgroundColor: '#f59e0b' }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+document.getElementById('rateUsdIls').addEventListener('input', updateConverter);
+document.getElementById('rateUsdCny').addEventListener('input', updateConverter);
+document.getElementById('convAmount').addEventListener('input', updateConverter);
+document.getElementById('convFrom').addEventListener('change', updateConverter);
+document.getElementById('convTo').addEventListener('change', updateConverter);
+['salaryRmb','salaryUsd','salaryIls','transferredIls'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateLiveSummary);
+});
+
+(async function init() {
+  try {
+    state = await fetchRemoteData();
+  } catch (e) {
+    console.error(e);
+  }
+  document.getElementById('loadingBanner').style.display = 'none';
+  document.getElementById('mainGrid').style.display = 'grid';
+  updateConnStatus();
+  initRateInputs();
+  document.getElementById('monthPicker').value = currentMonthStr();
+  renderItemsUI();
+  updateConverter();
+  updateLiveSummary();
+  renderHistory();
+})();
+</script>
+
+</body>
+</html>
