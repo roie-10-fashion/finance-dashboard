@@ -67,7 +67,7 @@
       "salaryUsd": 0,
       "salaryIls": 0,
       "transferredIls": 0,
-      "bankBalanceIls": 0,
+      "bankBalanceIls": -370,
       "ratesAtSave": {
         "usdIls": 3.06,
         "usdCny": 6.76
