@@ -3,5 +3,59 @@
     "usdIls": 3.06,
     "usdCny": 6.76
   },
-  "months": {}
+  "months": {
+    "2026-08": {
+      "month": "2026-08",
+      "items": [
+        {
+          "name": "מחסן",
+          "amount": 180,
+          "notes": "סה\"כ 520 ש\"ח מקבל החזרה מאמא ושי ע\"ס 170 ש\"ח כל אחד"
+        },
+        {
+          "name": "מכבי קופ״ח",
+          "amount": 130,
+          "notes": ""
+        },
+        {
+          "name": "הלוואה הראל",
+          "amount": 390,
+          "notes": ""
+        },
+        {
+          "name": "ביטוח רפואי הראל",
+          "amount": 502,
+          "notes": ""
+        },
+        {
+          "name": "כרטיס אשראי",
+          "amount": 20,
+          "notes": "6301"
+        },
+        {
+          "name": "כרטיס אשראי",
+          "amount": 675,
+          "notes": "7570"
+        },
+        {
+          "name": "כרטיס אשראי",
+          "amount": 1150,
+          "notes": "9815"
+        },
+        {
+          "name": "כרטיס אשראי",
+          "amount": 800,
+          "notes": "3267"
+        }
+      ],
+      "salaryRmb": 0,
+      "salaryUsd": 0,
+      "salaryIls": 0,
+      "transferredIls": 0,
+      "ratesAtSave": {
+        "usdIls": 3.06,
+        "usdCny": 6.76
+      }
+    }
+  }
 }
