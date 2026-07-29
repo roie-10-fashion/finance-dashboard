@@ -1,4 +1,7 @@
 {
-  "rates": { "usdIls": 3.06, "usdCny": 6.77 },
+  "rates": {
+    "usdIls": 3.06,
+    "usdCny": 6.76
+  },
   "months": {}
 }
