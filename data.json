@@ -3,5 +3,23 @@
     "usdIls": 3.06,
     "usdCny": 6.76
   },
-  "months": {}
+  "months": {
+    "2026-08": {
+      "month": "2026-08",
+      "items": [
+        {
+          "name": "מחסן",
+          "amount": 180
+        }
+      ],
+      "salaryRmb": 0,
+      "salaryUsd": 0,
+      "salaryIls": 0,
+      "transferredIls": 0,
+      "ratesAtSave": {
+        "usdIls": 3.06,
+        "usdCny": 6.76
+      }
+    }
+  }
 }
