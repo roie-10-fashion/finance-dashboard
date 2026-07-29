@@ -110,19 +110,47 @@
   .conn-status.on { background: #eafaf0; color: #1a8f4c; border: 1px solid #bfe8cf; }
   .conn-status.off { background: #fff7e6; color: #92650a; border: 1px solid #f0d9a6; }
   #loadingBanner { max-width: 1100px; margin: 0 auto 16px; text-align: center; color: #666; font-size: 13px; }
+  .header-row {
+    max-width: 1100px;
+    margin: 0 auto 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .mini-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; white-space: nowrap; }
+  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .status-dot.on { background: #1a8f4c; }
+  .status-dot.off { background: #e0a300; }
+  .gear-btn {
+    background: #fff; border: 1px solid #ddd; border-radius: 50%;
+    width: 32px; height: 32px; font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; margin: 0;
+  }
+  .gear-btn:hover { background: #f5eeff; }
 </style>
 </head>
 <body>
 
-<h1>ניהול כספים חודשי — RMB · USD · ILS</h1>
-<p class="subtitle">האתר נגיש מכל מכשיר. הנתונים נשמרים בקובץ data.json בריפו הזה ב-GitHub.</p>
+<div class="header-row">
+  <div>
+    <h1>ניהול כספים חודשי — RMB · USD · ILS</h1>
+    <p class="subtitle">הנתונים נשמרים בקובץ data.json בריפו הזה ב-GitHub, ונגישים מכל מכשיר.</p>
+  </div>
+  <div class="mini-status" id="miniStatus">
+    <span class="status-dot off" id="statusDot"></span>
+    <span id="statusText">לא מחובר</span>
+    <button class="gear-btn" onclick="toggleConnCard()" title="הגדרות שמירה">⚙</button>
+  </div>
+</div>
 
 <div id="loadingBanner">טוען נתונים...</div>
 
 <div class="grid" id="mainGrid" style="display:none;">
 
   <!-- Connection -->
-  <div class="card full">
+  <div class="card full" id="connCard" style="display:none;">
     <h2>חיבור לשמירה</h2>
     <label>טוקן GitHub (נשמר רק בדפדפן הזה, לא מועלה לריפו)</label>
     <input type="password" id="ghToken" placeholder="github_pat_...">
@@ -266,11 +294,17 @@ function saveToken() {
   localStorage.setItem(TOKEN_KEY, t);
   document.getElementById('ghToken').value = '';
   updateConnStatus();
+  document.getElementById('connCard').style.display = 'none';
 }
 
 function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
   updateConnStatus();
+}
+
+function toggleConnCard() {
+  const card = document.getElementById('connCard');
+  card.style.display = (card.style.display === 'none') ? 'block' : 'none';
 }
 
 function updateConnStatus() {
@@ -282,6 +316,9 @@ function updateConnStatus() {
   el.className = 'conn-status ' + (has ? 'on' : 'off');
   document.getElementById('saveRatesBtn').disabled = !has;
   document.getElementById('saveMonthBtn').disabled = !has;
+
+  document.getElementById('statusDot').className = 'status-dot ' + (has ? 'on' : 'off');
+  document.getElementById('statusText').textContent = has ? 'מחובר' : 'לא מחובר';
 }
 
 function b64EncodeUtf8(str) {
