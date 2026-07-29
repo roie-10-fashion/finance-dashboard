@@ -3,155 +3,244 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ניהול כספים - RMB / USD / ILS</title>
+<title>מרכז הכספים שלי — RMB · USD · ILS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
 <style>
-  :root { color-scheme: light; }
+  :root {
+    color-scheme: light;
+    --bg: #eef1f6;
+    --bg-2: #e4e9f2;
+    --ink: #1b2430;
+    --muted: #6b7684;
+    --card: #ffffff;
+    --border: #e6e9ef;
+    --accent: #4338ca;
+    --accent-2: #6d5bd0;
+    --accent-soft: #eeecfd;
+    --good: #059669;
+    --good-soft: #e6f6f0;
+    --bad: #dc2626;
+    --bad-soft: #fdecec;
+    --warn: #b45309;
+    --warn-soft: #fdf3e2;
+    --shadow: 0 1px 2px rgba(20,20,43,.04), 0 10px 24px -12px rgba(20,20,43,.12);
+  }
   * { box-sizing: border-box; }
   body {
-    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
-    background: #f7f7f8;
-    color: #1a1a1a;
+    font-family: 'Assistant', -apple-system, "Segoe UI", Arial, sans-serif;
+    background:
+      radial-gradient(1200px 400px at 20% -10%, #e7e9fb 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    background-attachment: fixed;
+    color: var(--ink);
     margin: 0;
-    padding: 20px;
+    padding: 28px 20px 60px;
     direction: rtl;
+    min-height: 100vh;
   }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .subtitle { color: #666; margin: 0 0 20px; font-size: 13px; }
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-  .card {
-    background: #fff;
-    border: 1px solid #e5e5e5;
-    border-radius: 10px;
-    padding: 16px 18px;
-  }
-  .card h2 { font-size: 15px; margin: 0 0 12px; color: #333; }
-  .full { grid-column: 1 / -1; }
-  label {
-    display: block;
-    font-size: 12px;
-    color: #555;
-    margin: 8px 0 3px;
-  }
-  input, select {
-    width: 100%;
-    padding: 7px 9px;
-    border: 1px solid #d7d7d9;
-    border-radius: 6px;
-    font-size: 13px;
-    background: #fafafa;
-  }
-  input:focus, select:focus { outline: 2px solid #c7a6ff; border-color: #a875ff; background: #fff; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-  button {
-    margin-top: 14px;
-    background: #7c3aed;
-    color: #fff;
-    border: none;
-    border-radius: 7px;
-    padding: 9px 16px;
-    font-size: 13px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  button:hover { background: #6d28d9; }
-  button:disabled { background: #ccc; cursor: not-allowed; }
-  button.secondary { background: #fff; color: #7c3aed; border: 1px solid #7c3aed; }
-  button.secondary:hover { background: #f5eeff; }
-  button.danger { background: #fff; color: #c0392b; border: 1px solid #e0b4ac; padding: 4px 9px; margin: 0; font-size: 12px; }
-  button.danger:hover { background: #fdecec; }
-  button.small-secondary { background: #fff; color: #7c3aed; border: 1px solid #7c3aed; padding: 4px 9px; margin: 0 4px 0 0; font-size: 12px; }
-  button.small-secondary:hover { background: #f5eeff; }
-  .chip { margin: 4px 4px 0 0; padding: 5px 12px; font-size: 12px; background: #fff; border: 1px solid #d7c3ff; color: #7c3aed; border-radius: 20px; cursor: pointer; font-weight: 500; }
-  .chip:hover { background: #f5eeff; }
-  .item-row { display: grid; grid-template-columns: 1fr 130px 34px; gap: 8px; align-items: center; margin-top: 8px; }
-  .item-row input { margin: 0; }
-  .item-remove { background: #fff; color: #c0392b; border: 1px solid #e0b4ac; border-radius: 6px; padding: 6px; margin: 0; font-size: 13px; cursor: pointer; height: 32px; }
-  .items-total { margin-top: 8px; font-size: 12.5px; }
-  .summary-box {
-    background: #faf5ff;
-    border: 1px solid #e6d6ff;
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-top: 12px;
-    font-size: 13px;
-    line-height: 1.9;
-  }
-  .summary-box b { color: #5b21b6; }
-  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
-  th, td { padding: 7px 8px; text-align: right; border-bottom: 1px solid #eee; }
-  th { color: #666; font-weight: 600; background: #fafafa; }
-  tr:hover td { background: #fbf8ff; }
-  .neg { color: #c0392b; font-weight: 600; }
-  .pos { color: #1a8f4c; font-weight: 600; }
-  .muted { color: #888; font-size: 12px; }
-  .rate-note { font-size: 11.5px; color: #888; margin-top: 2px; }
-  .conv-result { font-size: 16px; font-weight: 700; color: #5b21b6; margin-top: 10px; }
-  canvas { max-height: 260px; }
-  .saved-flash {
-    display: inline-block;
-    margin-right: 10px;
-    font-size: 12px;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  .saved-flash.show { opacity: 1; }
-  .saved-flash.ok { color: #1a8f4c; }
-  .saved-flash.err { color: #c0392b; }
-  .conn-status { font-size: 12.5px; margin-top: 10px; padding: 8px 10px; border-radius: 6px; }
-  .conn-status.on { background: #eafaf0; color: #1a8f4c; border: 1px solid #bfe8cf; }
-  .conn-status.off { background: #fff7e6; color: #92650a; border: 1px solid #f0d9a6; }
-  #loadingBanner { max-width: 1100px; margin: 0 auto 16px; text-align: center; color: #666; font-size: 13px; }
   .header-row {
-    max-width: 1100px;
-    margin: 0 auto 16px;
+    max-width: 1140px;
+    margin: 0 auto 22px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 12px;
   }
-  .mini-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; white-space: nowrap; }
-  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
-  .status-dot.on { background: #1a8f4c; }
-  .status-dot.off { background: #e0a300; }
-  .gear-btn {
-    background: #fff; border: 1px solid #ddd; border-radius: 50%;
-    width: 32px; height: 32px; font-size: 15px; cursor: pointer;
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-icon {
+    width: 46px; height: 46px; border-radius: 13px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     display: flex; align-items: center; justify-content: center;
-    padding: 0; margin: 0;
+    font-size: 22px; box-shadow: var(--shadow);
+    flex-shrink: 0;
   }
-  .gear-btn:hover { background: #f5eeff; }
+  h1 { font-size: 24px; margin: 0; font-weight: 800; letter-spacing: -0.3px; }
+  .subtitle { color: var(--muted); margin: 3px 0 0; font-size: 13px; }
+  .mini-status { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); white-space: nowrap; margin-top: 6px; }
+  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .status-dot.on { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+  .status-dot.off { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+  .gear-btn {
+    background: var(--card); border: 1px solid var(--border); border-radius: 50%;
+    width: 34px; height: 34px; font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; margin: 0; box-shadow: var(--shadow);
+    transition: transform .15s ease;
+  }
+  .gear-btn:hover { background: var(--accent-soft); transform: rotate(20deg); }
+
+  #loadingBanner { max-width: 1140px; margin: 40px auto; text-align: center; color: var(--muted); font-size: 14px; }
+
+  .kpi-row {
+    max-width: 1140px; margin: 0 auto 20px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  @media (max-width: 900px) { .kpi-row { grid-template-columns: 1fr 1fr; } }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px 18px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  }
+  .kpi .kpi-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .kpi .kpi-value { font-size: 22px; font-weight: 800; margin-top: 6px; letter-spacing: -0.3px; }
+  .kpi.good::before { background: linear-gradient(90deg, var(--good), #34d399); }
+  .kpi.bad::before { background: linear-gradient(90deg, var(--bad), #f87171); }
+  .kpi.warn::before { background: linear-gradient(90deg, var(--warn), #f5b040); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 1140px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    font-size: 15.5px; margin: 0 0 14px; color: var(--ink); font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; }
+  .full { grid-column: 1 / -1; }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 10px 0 4px;
+    font-weight: 600;
+  }
+  input, select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    font-size: 13.5px;
+    background: #fbfbfd;
+    font-family: inherit;
+    color: var(--ink);
+    transition: border-color .15s ease, background .15s ease;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent-2); background: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  button {
+    margin-top: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 18px;
+    font-size: 13.5px;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: inherit;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+    box-shadow: 0 6px 16px -6px rgba(67,56,202,.5);
+  }
+  button:hover { transform: translateY(-1px); box-shadow: 0 10px 20px -6px rgba(67,56,202,.55); }
+  button:active { transform: translateY(0); }
+  button:disabled { background: #d3d6dd; cursor: not-allowed; box-shadow: none; opacity: .8; }
+  button.secondary { background: #fff; color: var(--accent); border: 1.5px solid var(--accent-soft); box-shadow: none; }
+  button.secondary:hover { background: var(--accent-soft); transform: none; box-shadow: none; }
+  button.danger { background: #fff; color: var(--bad); border: 1.5px solid #f6cccc; padding: 5px 10px; margin: 0; font-size: 12px; box-shadow: none; }
+  button.danger:hover { background: var(--bad-soft); transform: none; }
+  button.small-secondary { background: #fff; color: var(--accent); border: 1.5px solid var(--accent-soft); padding: 5px 10px; margin: 0 4px 0 0; font-size: 12px; box-shadow: none; }
+  button.small-secondary:hover { background: var(--accent-soft); transform: none; }
+  .chip { margin: 4px 4px 0 0; padding: 6px 14px; font-size: 12.5px; background: #fff; border: 1.5px solid var(--accent-soft); color: var(--accent); border-radius: 20px; cursor: pointer; font-weight: 600; box-shadow: none; }
+  .chip:hover { background: var(--accent-soft); transform: none; }
+  .item-row { display: grid; grid-template-columns: 1fr 130px 36px; gap: 8px; align-items: center; margin-top: 8px; }
+  .item-row input { margin: 0; }
+  .item-remove { background: #fff; color: var(--bad); border: 1.5px solid #f6cccc; border-radius: 9px; padding: 6px; margin: 0; font-size: 13px; cursor: pointer; height: 36px; box-shadow: none; }
+  .items-total { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .summary-box {
+    background: linear-gradient(135deg, #f8f7ff, #f1effd);
+    border: 1px solid var(--accent-soft);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    font-size: 13.5px;
+    line-height: 2;
+  }
+  .summary-box b { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 12px; }
+  th, td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 700; background: #f8f9fc; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
+  tr:hover td { background: #faf9ff; }
+  .neg { color: var(--bad); font-weight: 700; }
+  .pos { color: var(--good); font-weight: 700; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .rate-note { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .conv-result {
+    font-size: 19px; font-weight: 800; color: var(--accent); margin-top: 14px;
+    background: var(--accent-soft); border-radius: 10px; padding: 12px 14px;
+  }
+  canvas { max-height: 260px; }
+  .saved-flash { display: inline-block; margin-right: 10px; font-size: 12px; opacity: 0; transition: opacity 0.3s; font-weight: 600; }
+  .saved-flash.show { opacity: 1; }
+  .saved-flash.ok { color: var(--good); }
+  .saved-flash.err { color: var(--bad); }
+  .conn-status { font-size: 12.5px; margin-top: 12px; padding: 10px 12px; border-radius: 9px; }
+  .conn-status.on { background: var(--good-soft); color: var(--good); border: 1px solid #bfe8cf; }
+  .conn-status.off { background: var(--warn-soft); color: var(--warn); border: 1px solid #f0d9a6; }
 </style>
 </head>
 <body>
 
 <div class="header-row">
-  <div>
-    <h1>ניהול כספים חודשי — RMB · USD · ILS</h1>
-    <p class="subtitle">הנתונים נשמרים בקובץ data.json בריפו הזה ב-GitHub, ונגישים מכל מכשיר.</p>
+  <div class="brand">
+    <div class="brand-icon">💰</div>
+    <div>
+      <h1>מרכז הכספים שלי</h1>
+      <p class="subtitle">RMB · USD · ILS — נתונים חיים, נגישים מכל מכשיר</p>
+    </div>
   </div>
-  <div class="mini-status" id="miniStatus">
-    <span class="status-dot off" id="statusDot"></span>
-    <span id="statusText">לא מחובר</span>
-    <button class="gear-btn" onclick="toggleConnCard()" title="הגדרות שמירה">⚙</button>
+  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+    <button class="gear-btn" onclick="toggleConnCard()" title="הגדרות שמירה" style="margin:0;">⚙</button>
+    <div class="mini-status" id="miniStatus">
+      <span class="status-dot off" id="statusDot"></span>
+      <span id="statusText">לא מחובר</span>
+    </div>
   </div>
 </div>
 
 <div id="loadingBanner">טוען נתונים...</div>
 
+<div class="kpi-row" id="kpiRow" style="display:none;">
+  <div class="kpi">
+    <div class="kpi-label">הכנסות החודש (ש"ח)</div>
+    <div class="kpi-value" id="kpiIncome">0</div>
+  </div>
+  <div class="kpi warn">
+    <div class="kpi-label">הוצאות החודש (ש"ח)</div>
+    <div class="kpi-value" id="kpiExpenses">0</div>
+  </div>
+  <div class="kpi good" id="kpiNetCard">
+    <div class="kpi-label">יתרה חודשית</div>
+    <div class="kpi-value" id="kpiNet">0</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">נדרש להעביר (RMB)</div>
+    <div class="kpi-value" id="kpiRmb">0</div>
+  </div>
+</div>
+
 <div class="grid" id="mainGrid" style="display:none;">
 
   <!-- Connection -->
   <div class="card full" id="connCard" style="display:none;">
-    <h2>חיבור לשמירה</h2>
+    <h2><span class="dot"></span>חיבור לשמירה</h2>
     <label>טוקן GitHub (נשמר רק בדפדפן הזה, לא מועלה לריפו)</label>
     <input type="password" id="ghToken" placeholder="github_pat_...">
     <button onclick="saveToken()">שמור טוקן במכשיר זה</button>
@@ -161,7 +250,7 @@
 
   <!-- Exchange rates -->
   <div class="card">
-    <h2>שערי המרה</h2>
+    <h2><span class="dot"></span>שערי המרה</h2>
     <div class="row2">
       <div>
         <label>USD → ILS (כמה ש"ח לדולר)</label>
@@ -180,7 +269,7 @@
 
   <!-- Quick converter -->
   <div class="card">
-    <h2>המרה מהירה</h2>
+    <h2><span class="dot"></span>המרה מהירה</h2>
     <label>סכום</label>
     <input type="number" id="convAmount" value="1000">
     <div class="row2">
@@ -206,11 +295,11 @@
 
   <!-- Monthly entry -->
   <div class="card full">
-    <h2>הזנה חודשית</h2>
+    <h2><span class="dot"></span>הזנה חודשית</h2>
     <label>חודש</label>
     <input type="month" id="monthPicker">
 
-    <label style="margin-top:14px; font-weight:600; color:#333;">הוצאות / הורדות מהבנק החודש — כל פריט בנפרד (בש"ח)</label>
+    <label style="margin-top:16px; font-weight:700; color:var(--ink); font-size:13px;">הוצאות / הורדות מהבנק החודש — כל פריט בנפרד (בש"ח)</label>
     <div>
       <button type="button" class="chip" onclick="addItem('כרטיס אשראי')">+ כרטיס אשראי</button>
       <button type="button" class="chip" onclick="addItem('מחסן')">+ מחסן</button>
@@ -221,7 +310,7 @@
     <div id="itemsContainer"></div>
     <div class="items-total muted" id="itemsTotal"></div>
 
-    <label style="margin-top:14px; font-weight:600; color:#333;">משכורת / הכנסות שהתקבלו החודש</label>
+    <label style="margin-top:16px; font-weight:700; color:var(--ink); font-size:13px;">משכורת / הכנסות שהתקבלו החודש</label>
     <div class="row3">
       <div>
         <label>ב-RMB</label>
@@ -237,7 +326,7 @@
       </div>
     </div>
 
-    <label style="margin-top:14px;">בפועל הועבר לישראל החודש (בש"ח, אופציונלי)</label>
+    <label style="margin-top:16px;">בפועל הועבר לישראל החודש (בש"ח, אופציונלי)</label>
     <input type="number" id="transferredIls" placeholder="0">
 
     <div class="summary-box" id="liveSummary"></div>
@@ -249,7 +338,7 @@
 
   <!-- History -->
   <div class="card full">
-    <h2>היסטוריה חודשית</h2>
+    <h2><span class="dot"></span>היסטוריה חודשית</h2>
     <div id="historyEmpty" class="muted">עדיין אין נתונים שמורים — הזן חודש ראשון למעלה.</div>
     <table id="historyTable" style="display:none;">
       <thead>
@@ -305,6 +394,7 @@ function clearToken() {
 function toggleConnCard() {
   const card = document.getElementById('connCard');
   card.style.display = (card.style.display === 'none') ? 'block' : 'none';
+  if (card.style.display === 'block') card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function updateConnStatus() {
@@ -364,7 +454,6 @@ async function pushRemoteData(newState, attempt) {
     body: JSON.stringify(body)
   });
   if (res.status === 409 && !attempt) {
-    // stale sha - refetch and retry once
     await fetchRemoteData();
     return pushRemoteData(newState, 1);
   }
@@ -549,6 +638,15 @@ function updateLiveSummary() {
     כדי לכסות את ההוצאות בישראל, צריך להמיר/להעביר בערך: <b>${fmt(c.neededRMB)} RMB</b>
     ${m.transferredIls ? `<br>הועבר בפועל: <b>${fmt(c.transferred)} ₪</b> — פער מול הנדרש: <b class="${c.diff>=0?'pos':'neg'}">${fmt(c.diff)} ₪</b>` : ''}
   `;
+
+  // KPI row
+  document.getElementById('kpiIncome').textContent = fmt(c.totalIncomeILS) + ' ₪';
+  document.getElementById('kpiExpenses').textContent = fmt(c.totalExpensesILS) + ' ₪';
+  document.getElementById('kpiNet').textContent = fmt(c.netILS) + ' ₪';
+  document.getElementById('kpiRmb').textContent = fmt(c.neededRMB) + ' ¥';
+  const netCard = document.getElementById('kpiNetCard');
+  netCard.classList.remove('good','bad');
+  netCard.classList.add(c.netILS >= 0 ? 'good' : 'bad');
 }
 
 async function saveMonth() {
@@ -654,11 +752,15 @@ function renderHistory() {
     data: {
       labels: months,
       datasets: [
-        { label: 'הכנסות (ש"ח)', data: incomeArr, backgroundColor: '#7c3aed' },
-        { label: 'הוצאות (ש"ח)', data: expenseArr, backgroundColor: '#f59e0b' }
+        { label: 'הכנסות (ש"ח)', data: incomeArr, backgroundColor: '#4338ca', borderRadius: 6 },
+        { label: 'הוצאות (ש"ח)', data: expenseArr, backgroundColor: '#f5b040', borderRadius: 6 }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, grid: { color: '#eef0f5' } }, x: { grid: { display: false } } },
+      plugins: { legend: { labels: { font: { family: 'Assistant' } } } }
+    }
   });
 }
 
@@ -679,6 +781,7 @@ document.getElementById('convTo').addEventListener('change', updateConverter);
   }
   document.getElementById('loadingBanner').style.display = 'none';
   document.getElementById('mainGrid').style.display = 'grid';
+  document.getElementById('kpiRow').style.display = 'grid';
   updateConnStatus();
   initRateInputs();
   document.getElementById('monthPicker').value = currentMonthStr();
