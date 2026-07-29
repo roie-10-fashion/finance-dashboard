@@ -360,6 +360,10 @@
       <div>
         <label style="margin-top:16px;">יתרה נוכחית בבנק בישראל (ש"ח)</label>
         <input type="number" id="bankBalanceIls" placeholder="0">
+        <label class="paid-toggle" style="margin-top:6px;">
+          <input type="checkbox" id="bankBalanceNegative">
+          אני במינוס/בחריגה (הסכום הוא חוב, לא כרית)
+        </label>
       </div>
       <div>
         <label style="margin-top:16px;">בפועל הועבר לישראל החודש (בש"ח, אופציונלי)</label>
@@ -728,6 +732,7 @@ function clearForm() {
   ['salaryRmb','salaryUsd','salaryIls','transferredIls','bankBalanceIls'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('bankBalanceNegative').checked = false;
   updateLiveSummary();
 }
 
@@ -758,6 +763,12 @@ function computeMonth(m) {
   };
 }
 
+function getBankBalanceSigned() {
+  const raw = parseFloat(document.getElementById('bankBalanceIls').value) || 0;
+  const neg = document.getElementById('bankBalanceNegative').checked;
+  return neg ? -Math.abs(raw) : Math.abs(raw);
+}
+
 function updateLiveSummary() {
   const m = {
     items: currentItems,
@@ -766,7 +777,7 @@ function updateLiveSummary() {
     salaryUsd: document.getElementById('salaryUsd').value,
     salaryIls: document.getElementById('salaryIls').value,
     transferredIls: document.getElementById('transferredIls').value,
-    bankBalanceIls: document.getElementById('bankBalanceIls').value
+    bankBalanceIls: getBankBalanceSigned()
   };
   const c = computeMonth(m);
   const box = document.getElementById('liveSummary');
@@ -775,7 +786,7 @@ function updateLiveSummary() {
     סה"כ הוצאות/הורדות (${c.itemCount} פריטים): <b>${fmt(c.totalExpensesILS)} ₪</b>
       — מזה כבר ירד: <b>${fmt(c.paidILS)} ₪</b>, עדיין פתוח: <b>${fmt(c.pendingILS)} ₪</b><br>
     ${c.reimbCount ? `החזרים צפויים (${c.reimbCount}): <b class="pos">${fmt(c.totalReimbursementsILS)} ₪</b><br>` : ''}
-    יתרה נוכחית בבנק בישראל: <b>${fmt(c.bankBalanceILS)} ₪</b><br>
+    יתרה נוכחית בבנק בישראל: <b class="${c.bankBalanceILS>=0?'pos':'neg'}">${fmt(c.bankBalanceILS)} ₪</b>${c.bankBalanceILS<0 ? ' (במינוס)' : ''}<br>
     יתרה חודשית (הכנסות + החזרים פחות כל ההוצאות): <b class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)} ₪</b><br>
     ${c.surplusILS > 0
       ? `היתרה בבנק וההחזרים הצפויים מכסים את כל מה שעדיין פתוח — יש אפילו עודף של <b class="pos">${fmt(c.surplusILS)} ₪</b>, אין צורך להעביר כרגע.`
@@ -810,7 +821,7 @@ async function saveMonth() {
     salaryUsd: parseFloat(document.getElementById('salaryUsd').value) || 0,
     salaryIls: parseFloat(document.getElementById('salaryIls').value) || 0,
     transferredIls: parseFloat(document.getElementById('transferredIls').value) || 0,
-    bankBalanceIls: parseFloat(document.getElementById('bankBalanceIls').value) || 0,
+    bankBalanceIls: getBankBalanceSigned(),
     ratesAtSave: { ...state.rates }
   };
   const existing = state.months[month];
@@ -841,7 +852,8 @@ function loadMonthToForm(month) {
   document.getElementById('salaryUsd').value = m.salaryUsd || '';
   document.getElementById('salaryIls').value = m.salaryIls || '';
   document.getElementById('transferredIls').value = m.transferredIls || '';
-  document.getElementById('bankBalanceIls').value = m.bankBalanceIls || '';
+  document.getElementById('bankBalanceIls').value = m.bankBalanceIls ? Math.abs(m.bankBalanceIls) : '';
+  document.getElementById('bankBalanceNegative').checked = !!(m.bankBalanceIls && m.bankBalanceIls < 0);
   renderItemsUI();
   renderReimbUI();
   updateLiveSummary();
@@ -927,6 +939,7 @@ document.getElementById('convTo').addEventListener('change', updateConverter);
 ['salaryRmb','salaryUsd','salaryIls','transferredIls','bankBalanceIls'].forEach(id => {
   document.getElementById(id).addEventListener('input', updateLiveSummary);
 });
+document.getElementById('bankBalanceNegative').addEventListener('change', updateLiveSummary);
 
 (async function init() {
   try {
