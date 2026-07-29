@@ -481,6 +481,11 @@ function fmt(n) {
   return Number(n).toLocaleString('he-IL', { maximumFractionDigits: 0 });
 }
 
+function fmtPrecise(n) {
+  if (n === undefined || n === null || isNaN(n)) return '0';
+  return Number(n).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function cnyIlsRate() { return state.rates.usdIls / state.rates.usdCny; }
 
 function toILS(amount, currency) {
@@ -607,7 +612,7 @@ function updateConverter() {
   const result = convert(amount, from, to);
   const labels = { ILS: 'ש"ח', USD: 'דולר', CNY: 'RMB' };
   document.getElementById('convResult').textContent =
-    `${fmt(amount)} ${labels[from]} = ${fmt(result)} ${labels[to]}`;
+    `${fmtPrecise(amount)} ${labels[from]} = ${fmtPrecise(result)} ${labels[to]}`;
 }
 
 function currentMonthStr() {
