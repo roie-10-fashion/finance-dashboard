@@ -160,9 +160,16 @@
   button.small-secondary:hover { background: var(--accent-soft); transform: none; }
   .chip { margin: 4px 4px 0 0; padding: 6px 14px; font-size: 12.5px; background: #fff; border: 1.5px solid var(--accent-soft); color: var(--accent); border-radius: 20px; cursor: pointer; font-weight: 600; box-shadow: none; }
   .chip:hover { background: var(--accent-soft); transform: none; }
-  .item-row { display: grid; grid-template-columns: 1.1fr 85px 1fr 34px; gap: 6px; align-items: center; margin-top: 6px; }
+  .item-row { display: grid; grid-template-columns: 1fr 80px 1fr 64px 34px; gap: 6px; align-items: center; margin-top: 6px; }
   .item-row input { margin: 0; padding: 6px 9px; font-size: 12.5px; }
   .item-row input.notes-input { color: var(--muted); }
+  .paid-toggle {
+    display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted);
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  .paid-toggle input { width: auto; padding: 0; accent-color: var(--good); cursor: pointer; }
+  .item-row.is-paid { opacity: .6; }
+  .item-row.is-paid input:not(.paid-toggle input) { text-decoration: line-through; }
   .item-remove { background: #fff; color: var(--bad); border: 1.5px solid #f6cccc; border-radius: 9px; padding: 6px; margin: 0; font-size: 13px; cursor: pointer; height: 36px; box-shadow: none; }
   .items-total { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
   .summary-box {
@@ -241,7 +248,7 @@
     <div class="kpi-value" id="kpiNet">0</div>
   </div>
   <div class="kpi">
-    <div class="kpi-label">נדרש להעביר (RMB)</div>
+    <div class="kpi-label">נדרש להעביר אחרי יתרה (RMB)</div>
     <div class="kpi-value" id="kpiRmb">0</div>
   </div>
 </div>
@@ -340,8 +347,16 @@
       </div>
     </div>
 
-    <label style="margin-top:16px;">בפועל הועבר לישראל החודש (בש"ח, אופציונלי)</label>
-    <input type="number" id="transferredIls" placeholder="0">
+    <div class="row2">
+      <div>
+        <label style="margin-top:16px;">יתרה נוכחית בבנק בישראל (ש"ח)</label>
+        <input type="number" id="bankBalanceIls" placeholder="0">
+      </div>
+      <div>
+        <label style="margin-top:16px;">בפועל הועבר לישראל החודש (בש"ח, אופציונלי)</label>
+        <input type="number" id="transferredIls" placeholder="0">
+      </div>
+    </div>
 
     <div class="summary-box" id="liveSummary"></div>
 
@@ -522,11 +537,15 @@ function renderItemsUI() {
   container.innerHTML = '';
   currentItems.forEach((item, idx) => {
     const row = document.createElement('div');
-    row.className = 'item-row';
+    row.className = 'item-row' + (item.paid ? ' is-paid' : '');
     row.innerHTML = `
       <input type="text" placeholder="שם הפריט" value="${escapeHtml(item.name)}" oninput="updateItemField(${idx},'name',this.value)">
       <input type="number" placeholder="סכום" value="${item.amount === '' || item.amount === undefined || item.amount === null ? '' : item.amount}" oninput="updateItemField(${idx},'amount',this.value)">
       <input type="text" class="notes-input" placeholder="הערה (למשל: איזה כרטיס / פרטים)" value="${escapeHtml(item.notes)}" oninput="updateItemField(${idx},'notes',this.value)">
+      <label class="paid-toggle" title="סמן אם התשלום כבר ירד/שולם בפועל">
+        <input type="checkbox" ${item.paid ? 'checked' : ''} onchange="toggleItemPaid(${idx}, this.checked)">
+        כבר ירד
+      </label>
       <button type="button" class="item-remove" onclick="removeItem(${idx})">✕</button>
     `;
     container.appendChild(row);
@@ -535,7 +554,7 @@ function renderItemsUI() {
 }
 
 function addItem(name = '', amount = '', notes = '') {
-  currentItems.push({ name, amount, notes });
+  currentItems.push({ name, amount, notes, paid: false });
   renderItemsUI();
   updateLiveSummary();
   setTimeout(() => {
@@ -561,10 +580,18 @@ function updateItemField(idx, field, value) {
   updateLiveSummary();
 }
 
+function toggleItemPaid(idx, checked) {
+  currentItems[idx].paid = checked;
+  renderItemsUI();
+  updateLiveSummary();
+}
+
 function updateItemsTotal() {
   const total = currentItems.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+  const paid = currentItems.filter(it => it.paid).reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+  const pending = total - paid;
   document.getElementById('itemsTotal').textContent = currentItems.length
-    ? `סה"כ ${currentItems.length} פריטים: ${fmt(total)} ₪`
+    ? `סה"כ ${currentItems.length} פריטים: ${fmt(total)} ₪ (כבר ירד: ${fmt(paid)} ₪ · עדיין פתוח: ${fmt(pending)} ₪)`
     : 'אין עדיין פריטים - הוסף למעלה (כרטיס אשראי, מחסן, טלפון וכו׳).';
 }
 
@@ -634,7 +661,7 @@ function clearForm() {
   // to start a fresh entry can't accidentally point at the wrong month.
   currentItems = [];
   renderItemsUI();
-  ['salaryRmb','salaryUsd','salaryIls','transferredIls'].forEach(id => {
+  ['salaryRmb','salaryUsd','salaryIls','transferredIls','bankBalanceIls'].forEach(id => {
     document.getElementById(id).value = '';
   });
   updateLiveSummary();
@@ -645,14 +672,22 @@ function computeMonth(m) {
   const totalExpensesILS = items.length
     ? items.reduce((s, it) => s + (parseFloat(it.amount) || 0), 0)
     : (Number(m.bankFixed)||0) + (Number(m.bankVariable)||0);
+  const paidILS = items.reduce((s, it) => s + (it.paid ? (parseFloat(it.amount) || 0) : 0), 0);
+  const pendingILS = totalExpensesILS - paidILS;
+  const bankBalanceILS = Number(m.bankBalanceIls) || 0;
+  const stillNeededILS = Math.max(0, pendingILS - bankBalanceILS);
+  const surplusILS = Math.max(0, bankBalanceILS - pendingILS);
   const totalIncomeILS = (Number(m.salaryIls)||0)
     + toILS(m.salaryUsd, 'USD')
     + toILS(m.salaryRmb, 'CNY');
   const netILS = totalIncomeILS - totalExpensesILS;
-  const neededRMB = totalExpensesILS / cnyIlsRate();
+  const neededRMB = stillNeededILS / cnyIlsRate();
   const transferred = Number(m.transferredIls) || 0;
-  const diff = transferred - totalExpensesILS;
-  return { totalExpensesILS, totalIncomeILS, netILS, neededRMB, transferred, diff, itemCount: items.length };
+  const diff = transferred - stillNeededILS;
+  return {
+    totalExpensesILS, totalIncomeILS, netILS, neededRMB, transferred, diff, itemCount: items.length,
+    paidILS, pendingILS, bankBalanceILS, stillNeededILS, surplusILS
+  };
 }
 
 function updateLiveSummary() {
@@ -661,15 +696,20 @@ function updateLiveSummary() {
     salaryRmb: document.getElementById('salaryRmb').value,
     salaryUsd: document.getElementById('salaryUsd').value,
     salaryIls: document.getElementById('salaryIls').value,
-    transferredIls: document.getElementById('transferredIls').value
+    transferredIls: document.getElementById('transferredIls').value,
+    bankBalanceIls: document.getElementById('bankBalanceIls').value
   };
   const c = computeMonth(m);
   const box = document.getElementById('liveSummary');
   box.innerHTML = `
     סה"כ הכנסות (מומר לש"ח): <b>${fmt(c.totalIncomeILS)} ₪</b><br>
-    סה"כ הוצאות/הורדות (${c.itemCount} פריטים): <b>${fmt(c.totalExpensesILS)} ₪</b><br>
-    יתרה חודשית: <b class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)} ₪</b><br>
-    כדי לכסות את ההוצאות בישראל, צריך להמיר/להעביר בערך: <b>${fmt(c.neededRMB)} RMB</b>
+    סה"כ הוצאות/הורדות (${c.itemCount} פריטים): <b>${fmt(c.totalExpensesILS)} ₪</b>
+      — מזה כבר ירד: <b>${fmt(c.paidILS)} ₪</b>, עדיין פתוח: <b>${fmt(c.pendingILS)} ₪</b><br>
+    יתרה נוכחית בבנק בישראל: <b>${fmt(c.bankBalanceILS)} ₪</b><br>
+    יתרה חודשית (הכנסות פחות כל ההוצאות): <b class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)} ₪</b><br>
+    ${c.surplusILS > 0
+      ? `היתרה בבנק מכסה את כל מה שעדיין פתוח — יש אפילו עודף של <b class="pos">${fmt(c.surplusILS)} ₪</b>, אין צורך להעביר כרגע.`
+      : `אחרי קיזוז היתרה הקיימת בבנק, עדיין צריך לכסות: <b>${fmt(c.stillNeededILS)} ₪</b> — כלומר להמיר/להעביר בערך <b>${fmt(c.neededRMB)} RMB</b>.`}
     ${m.transferredIls ? `<br>הועבר בפועל: <b>${fmt(c.transferred)} ₪</b> — פער מול הנדרש: <b class="${c.diff>=0?'pos':'neg'}">${fmt(c.diff)} ₪</b>` : ''}
   `;
 
@@ -688,7 +728,7 @@ async function saveMonth() {
   const month = document.getElementById('monthPicker').value || currentMonthStr();
   const items = currentItems
     .filter(it => (it.name && it.name.trim()) || (parseFloat(it.amount) || 0) !== 0)
-    .map(it => ({ name: (it.name || '').trim() || 'פריט ללא שם', amount: parseFloat(it.amount) || 0, notes: (it.notes || '').trim() }));
+    .map(it => ({ name: (it.name || '').trim() || 'פריט ללא שם', amount: parseFloat(it.amount) || 0, notes: (it.notes || '').trim(), paid: !!it.paid }));
   const m = {
     month,
     items,
@@ -696,6 +736,7 @@ async function saveMonth() {
     salaryUsd: parseFloat(document.getElementById('salaryUsd').value) || 0,
     salaryIls: parseFloat(document.getElementById('salaryIls').value) || 0,
     transferredIls: parseFloat(document.getElementById('transferredIls').value) || 0,
+    bankBalanceIls: parseFloat(document.getElementById('bankBalanceIls').value) || 0,
     ratesAtSave: { ...state.rates }
   };
   const existing = state.months[month];
@@ -720,11 +761,12 @@ function loadMonthToForm(month) {
   const m = state.months[month];
   if (!m) return;
   document.getElementById('monthPicker').value = month;
-  currentItems = (m.items || []).map(it => ({ name: it.name, amount: it.amount, notes: it.notes || '' }));
+  currentItems = (m.items || []).map(it => ({ name: it.name, amount: it.amount, notes: it.notes || '', paid: !!it.paid }));
   document.getElementById('salaryRmb').value = m.salaryRmb || '';
   document.getElementById('salaryUsd').value = m.salaryUsd || '';
   document.getElementById('salaryIls').value = m.salaryIls || '';
   document.getElementById('transferredIls').value = m.transferredIls || '';
+  document.getElementById('bankBalanceIls').value = m.bankBalanceIls || '';
   renderItemsUI();
   updateLiveSummary();
   document.getElementById('monthPicker').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -806,7 +848,7 @@ document.getElementById('rateUsdCny').addEventListener('input', updateConverter)
 document.getElementById('convAmount').addEventListener('input', updateConverter);
 document.getElementById('convFrom').addEventListener('change', updateConverter);
 document.getElementById('convTo').addEventListener('change', updateConverter);
-['salaryRmb','salaryUsd','salaryIls','transferredIls'].forEach(id => {
+['salaryRmb','salaryUsd','salaryIls','transferredIls','bankBalanceIls'].forEach(id => {
   document.getElementById(id).addEventListener('input', updateLiveSummary);
 });
 
