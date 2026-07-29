@@ -464,8 +464,12 @@ async function pushRemoteData(newState, attempt) {
     body: JSON.stringify(body)
   });
   if (res.status === 409 && !attempt) {
-    await fetchRemoteData();
-    return pushRemoteData(newState, 1);
+    // Someone else (another device/tab) saved in the meantime.
+    // Merge: keep their months too, but our just-edited months win.
+    const remote = await fetchRemoteData();
+    const merged = { rates: newState.rates, months: { ...remote.months, ...newState.months } };
+    state = merged;
+    return pushRemoteData(merged, 1);
   }
   if (!res.ok) {
     const errText = await res.text();
@@ -688,9 +692,6 @@ async function saveMonth() {
     transferredIls: parseFloat(document.getElementById('transferredIls').value) || 0,
     ratesAtSave: { ...state.rates }
   };
-  if (state.months[month]) {
-    if (!confirm(`כבר יש נתונים שמורים לחודש ${month}. לדרוס אותם?`)) return;
-  }
   state.months[month] = m;
   btn.disabled = true; btn.textContent = 'שומר...';
   try {
