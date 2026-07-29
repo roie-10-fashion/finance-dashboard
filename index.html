@@ -630,7 +630,8 @@ function currentMonthStr() {
 }
 
 function clearForm() {
-  document.getElementById('monthPicker').value = currentMonthStr();
+  // Note: intentionally does NOT touch monthPicker, so clearing the form
+  // to start a fresh entry can't accidentally point at the wrong month.
   currentItems = [];
   renderItemsUI();
   ['salaryRmb','salaryUsd','salaryIls','transferredIls'].forEach(id => {
@@ -697,6 +698,12 @@ async function saveMonth() {
     transferredIls: parseFloat(document.getElementById('transferredIls').value) || 0,
     ratesAtSave: { ...state.rates }
   };
+  const existing = state.months[month];
+  const newIsEmpty = items.length === 0 && !m.salaryRmb && !m.salaryUsd && !m.salaryIls && !m.transferredIls;
+  const existingHasData = existing && ((existing.items || []).length > 0 || existing.salaryRmb || existing.salaryUsd || existing.salaryIls || existing.transferredIls);
+  if (newIsEmpty && existingHasData) {
+    if (!confirm(`הטופס ריק, אבל לחודש ${month} כבר יש נתונים שמורים. שמירה עכשיו תמחק אותם. להמשיך?`)) return;
+  }
   state.months[month] = m;
   btn.disabled = true; btn.textContent = 'שומר...';
   try {
