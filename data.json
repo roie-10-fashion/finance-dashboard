@@ -3,5 +3,35 @@
     "usdIls": 3.06,
     "usdCny": 6.76
   },
-  "months": {}
+  "months": {
+    "2026-07": {
+      "month": "2026-07",
+      "items": [
+        {
+          "name": "מחסן",
+          "amount": 180
+        },
+        {
+          "name": "מכבי קופ״ח",
+          "amount": 130
+        },
+        {
+          "name": "ביטוח רפואי הראל",
+          "amount": 502
+        },
+        {
+          "name": "הלוואה הראל",
+          "amount": 390
+        }
+      ],
+      "salaryRmb": 0,
+      "salaryUsd": 0,
+      "salaryIls": 0,
+      "transferredIls": 0,
+      "ratesAtSave": {
+        "usdIls": 3.06,
+        "usdCny": 6.76
+      }
+    }
+  }
 }
