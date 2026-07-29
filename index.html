@@ -331,6 +331,15 @@
     <div id="itemsContainer"></div>
     <div class="items-total muted" id="itemsTotal"></div>
 
+    <label style="margin-top:16px; font-weight:700; color:var(--ink); font-size:13px;">החזרים / כספים שאמורים לחזור אליך החודש</label>
+    <div class="rate-note" style="margin-bottom:6px;">למשל: הוצאת 180 ש"ח על מחסן אבל תעלה בפועל 520, ומקבל בחזרה 340 ש"ח ממשפחה — תרשום כאן "החזר מחסן" 340. זה מקוזז מהסכום שצריך להעביר.</div>
+    <div>
+      <button type="button" class="chip" onclick="addReimb('החזר מחסן')">+ החזר מחסן</button>
+      <button type="button" class="chip" onclick="addReimb('')">+ החזר חופשי</button>
+    </div>
+    <div id="reimbContainer"></div>
+    <div class="items-total muted" id="reimbTotal"></div>
+
     <label style="margin-top:16px; font-weight:700; color:var(--ink); font-size:13px;">משכורת / הכנסות שהתקבלו החודש</label>
     <div class="row3">
       <div>
@@ -402,6 +411,7 @@ const TOKEN_KEY = 'financeGhToken_v1';
 let state = { rates: { usdIls: 3.06, usdCny: 6.77 }, months: {} };
 let currentSha = null;
 let currentItems = [];
+let currentReimbursements = [];
 let chart = null;
 
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
@@ -595,6 +605,58 @@ function updateItemsTotal() {
     : 'אין עדיין פריטים - הוסף למעלה (כרטיס אשראי, מחסן, טלפון וכו׳).';
 }
 
+function renderReimbUI() {
+  const container = document.getElementById('reimbContainer');
+  container.innerHTML = '';
+  currentReimbursements.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input type="text" placeholder="שם ההחזר" value="${escapeHtml(item.name)}" oninput="updateReimbField(${idx},'name',this.value)">
+      <input type="number" placeholder="סכום" value="${item.amount === '' || item.amount === undefined || item.amount === null ? '' : item.amount}" oninput="updateReimbField(${idx},'amount',this.value)">
+      <input type="text" class="notes-input" placeholder="הערה" value="${escapeHtml(item.notes)}" oninput="updateReimbField(${idx},'notes',this.value)">
+      <span></span>
+      <button type="button" class="item-remove" onclick="removeReimb(${idx})">✕</button>
+    `;
+    container.appendChild(row);
+  });
+  updateReimbTotal();
+}
+
+function addReimb(name = '', amount = '', notes = '') {
+  currentReimbursements.push({ name, amount, notes });
+  renderReimbUI();
+  updateLiveSummary();
+  setTimeout(() => {
+    const rows = document.querySelectorAll('#reimbContainer .item-row');
+    const last = rows[rows.length - 1];
+    if (last) {
+      const inputs = last.querySelectorAll('input');
+      const target = name ? inputs[1] : inputs[0];
+      if (target) target.focus();
+    }
+  }, 0);
+}
+
+function removeReimb(idx) {
+  currentReimbursements.splice(idx, 1);
+  renderReimbUI();
+  updateLiveSummary();
+}
+
+function updateReimbField(idx, field, value) {
+  currentReimbursements[idx][field] = value;
+  updateReimbTotal();
+  updateLiveSummary();
+}
+
+function updateReimbTotal() {
+  const total = currentReimbursements.reduce((sum, it) => sum + (parseFloat(it.amount) || 0), 0);
+  document.getElementById('reimbTotal').textContent = currentReimbursements.length
+    ? `סה"כ ${currentReimbursements.length} החזרים: ${fmt(total)} ₪ — מקוזז מהסכום שצריך להעביר`
+    : 'אין עדיין החזרים - הוסף למעלה אם צפוי לך כסף חוזר החודש.';
+}
+
 function initRateInputs() {
   document.getElementById('rateUsdIls').value = state.rates.usdIls;
   document.getElementById('rateUsdCny').value = state.rates.usdCny;
@@ -660,7 +722,9 @@ function clearForm() {
   // Note: intentionally does NOT touch monthPicker, so clearing the form
   // to start a fresh entry can't accidentally point at the wrong month.
   currentItems = [];
+  currentReimbursements = [];
   renderItemsUI();
+  renderReimbUI();
   ['salaryRmb','salaryUsd','salaryIls','transferredIls','bankBalanceIls'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -669,30 +733,35 @@ function clearForm() {
 
 function computeMonth(m) {
   const items = m.items || [];
+  const reimbursements = m.reimbursements || [];
   const totalExpensesILS = items.length
     ? items.reduce((s, it) => s + (parseFloat(it.amount) || 0), 0)
     : (Number(m.bankFixed)||0) + (Number(m.bankVariable)||0);
+  const totalReimbursementsILS = reimbursements.reduce((s, it) => s + (parseFloat(it.amount) || 0), 0);
   const paidILS = items.reduce((s, it) => s + (it.paid ? (parseFloat(it.amount) || 0) : 0), 0);
   const pendingILS = totalExpensesILS - paidILS;
   const bankBalanceILS = Number(m.bankBalanceIls) || 0;
-  const stillNeededILS = Math.max(0, pendingILS - bankBalanceILS);
-  const surplusILS = Math.max(0, bankBalanceILS - pendingILS);
+  const bufferILS = bankBalanceILS + totalReimbursementsILS;
+  const stillNeededILS = Math.max(0, pendingILS - bufferILS);
+  const surplusILS = Math.max(0, bufferILS - pendingILS);
   const totalIncomeILS = (Number(m.salaryIls)||0)
     + toILS(m.salaryUsd, 'USD')
     + toILS(m.salaryRmb, 'CNY');
-  const netILS = totalIncomeILS - totalExpensesILS;
+  const netILS = totalIncomeILS + totalReimbursementsILS - totalExpensesILS;
   const neededRMB = stillNeededILS / cnyIlsRate();
   const transferred = Number(m.transferredIls) || 0;
   const diff = transferred - stillNeededILS;
   return {
     totalExpensesILS, totalIncomeILS, netILS, neededRMB, transferred, diff, itemCount: items.length,
-    paidILS, pendingILS, bankBalanceILS, stillNeededILS, surplusILS
+    paidILS, pendingILS, bankBalanceILS, stillNeededILS, surplusILS,
+    totalReimbursementsILS, reimbCount: reimbursements.length
   };
 }
 
 function updateLiveSummary() {
   const m = {
     items: currentItems,
+    reimbursements: currentReimbursements,
     salaryRmb: document.getElementById('salaryRmb').value,
     salaryUsd: document.getElementById('salaryUsd').value,
     salaryIls: document.getElementById('salaryIls').value,
@@ -705,11 +774,12 @@ function updateLiveSummary() {
     סה"כ הכנסות (מומר לש"ח): <b>${fmt(c.totalIncomeILS)} ₪</b><br>
     סה"כ הוצאות/הורדות (${c.itemCount} פריטים): <b>${fmt(c.totalExpensesILS)} ₪</b>
       — מזה כבר ירד: <b>${fmt(c.paidILS)} ₪</b>, עדיין פתוח: <b>${fmt(c.pendingILS)} ₪</b><br>
+    ${c.reimbCount ? `החזרים צפויים (${c.reimbCount}): <b class="pos">${fmt(c.totalReimbursementsILS)} ₪</b><br>` : ''}
     יתרה נוכחית בבנק בישראל: <b>${fmt(c.bankBalanceILS)} ₪</b><br>
-    יתרה חודשית (הכנסות פחות כל ההוצאות): <b class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)} ₪</b><br>
+    יתרה חודשית (הכנסות + החזרים פחות כל ההוצאות): <b class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)} ₪</b><br>
     ${c.surplusILS > 0
-      ? `היתרה בבנק מכסה את כל מה שעדיין פתוח — יש אפילו עודף של <b class="pos">${fmt(c.surplusILS)} ₪</b>, אין צורך להעביר כרגע.`
-      : `אחרי קיזוז היתרה הקיימת בבנק, עדיין צריך לכסות: <b>${fmt(c.stillNeededILS)} ₪</b> — כלומר להמיר/להעביר בערך <b>${fmt(c.neededRMB)} RMB</b>.`}
+      ? `היתרה בבנק וההחזרים הצפויים מכסים את כל מה שעדיין פתוח — יש אפילו עודף של <b class="pos">${fmt(c.surplusILS)} ₪</b>, אין צורך להעביר כרגע.`
+      : `אחרי קיזוז היתרה הקיימת בבנק וההחזרים הצפויים, עדיין צריך לכסות: <b>${fmt(c.stillNeededILS)} ₪</b> — כלומר להמיר/להעביר בערך <b>${fmt(c.neededRMB)} RMB</b>.`}
     ${m.transferredIls ? `<br>הועבר בפועל: <b>${fmt(c.transferred)} ₪</b> — פער מול הנדרש: <b class="${c.diff>=0?'pos':'neg'}">${fmt(c.diff)} ₪</b>` : ''}
   `;
 
@@ -729,9 +799,13 @@ async function saveMonth() {
   const items = currentItems
     .filter(it => (it.name && it.name.trim()) || (parseFloat(it.amount) || 0) !== 0)
     .map(it => ({ name: (it.name || '').trim() || 'פריט ללא שם', amount: parseFloat(it.amount) || 0, notes: (it.notes || '').trim(), paid: !!it.paid }));
+  const reimbursements = currentReimbursements
+    .filter(it => (it.name && it.name.trim()) || (parseFloat(it.amount) || 0) !== 0)
+    .map(it => ({ name: (it.name || '').trim() || 'החזר ללא שם', amount: parseFloat(it.amount) || 0, notes: (it.notes || '').trim() }));
   const m = {
     month,
     items,
+    reimbursements,
     salaryRmb: parseFloat(document.getElementById('salaryRmb').value) || 0,
     salaryUsd: parseFloat(document.getElementById('salaryUsd').value) || 0,
     salaryIls: parseFloat(document.getElementById('salaryIls').value) || 0,
@@ -740,7 +814,7 @@ async function saveMonth() {
     ratesAtSave: { ...state.rates }
   };
   const existing = state.months[month];
-  const newIsEmpty = items.length === 0 && !m.salaryRmb && !m.salaryUsd && !m.salaryIls && !m.transferredIls;
+  const newIsEmpty = items.length === 0 && reimbursements.length === 0 && !m.salaryRmb && !m.salaryUsd && !m.salaryIls && !m.transferredIls;
   const existingHasData = existing && ((existing.items || []).length > 0 || existing.salaryRmb || existing.salaryUsd || existing.salaryIls || existing.transferredIls);
   if (newIsEmpty && existingHasData) {
     if (!confirm(`הטופס ריק, אבל לחודש ${month} כבר יש נתונים שמורים. שמירה עכשיו תמחק אותם. להמשיך?`)) return;
@@ -762,12 +836,14 @@ function loadMonthToForm(month) {
   if (!m) return;
   document.getElementById('monthPicker').value = month;
   currentItems = (m.items || []).map(it => ({ name: it.name, amount: it.amount, notes: it.notes || '', paid: !!it.paid }));
+  currentReimbursements = (m.reimbursements || []).map(it => ({ name: it.name, amount: it.amount, notes: it.notes || '' }));
   document.getElementById('salaryRmb').value = m.salaryRmb || '';
   document.getElementById('salaryUsd').value = m.salaryUsd || '';
   document.getElementById('salaryIls').value = m.salaryIls || '';
   document.getElementById('transferredIls').value = m.transferredIls || '';
   document.getElementById('bankBalanceIls').value = m.bankBalanceIls || '';
   renderItemsUI();
+  renderReimbUI();
   updateLiveSummary();
   document.getElementById('monthPicker').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -865,6 +941,7 @@ document.getElementById('convTo').addEventListener('change', updateConverter);
   initRateInputs();
   document.getElementById('monthPicker').value = currentMonthStr();
   renderItemsUI();
+  renderReimbUI();
   updateConverter();
   updateLiveSummary();
   renderHistory();
