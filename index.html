@@ -238,6 +238,8 @@
   .line-item .li-notes { color: var(--muted); font-size: 11.5px; display: block; }
   .line-item.is-paid { opacity: .55; text-decoration: line-through; }
   .month-actions { display: flex; gap: 6px; margin-top: 14px; }
+  .trends-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .trends-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -410,8 +412,25 @@
     <h2><span class="dot"></span>היסטוריה חודשית</h2>
     <div id="historyEmpty" class="muted">עדיין אין נתונים שמורים — הזן חודש ראשון למעלה.</div>
     <div id="historyList"></div>
-    <div style="margin-top:16px;">
-      <canvas id="historyChart"></canvas>
+  </div>
+
+  <!-- Trends -->
+  <div class="card full" id="trendsCard" style="display:none;">
+    <h2><span class="dot"></span>מגמות ותובנות</h2>
+    <div class="trends-grid">
+      <div>
+        <div class="month-section-title" style="margin-top:0;">הכנסות מול הוצאות ויתרה נטו לאורך זמן</div>
+        <div style="height:280px;">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </div>
+      <div>
+        <div class="month-section-title" style="margin-top:0;">לאן הולך הכסף — לפי סוג הוצאה (מצטבר)</div>
+        <div style="height:280px;">
+          <canvas id="breakdownChart"></canvas>
+        </div>
+        <div class="muted" id="breakdownEmpty" style="display:none;">אין עדיין מספיק נתונים לפירוט.</div>
+      </div>
     </div>
   </div>
 
@@ -430,6 +449,7 @@ let currentSha = null;
 let currentItems = [];
 let currentReimbursements = [];
 let chart = null;
+let breakdownChart = null;
 
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
 
@@ -908,18 +928,15 @@ function renderHistory() {
 
   if (monthsAsc.length === 0) {
     empty.style.display = 'block';
+    document.getElementById('trendsCard').style.display = 'none';
     if (chart) { chart.destroy(); chart = null; }
+    if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
     return;
   }
   empty.style.display = 'none';
+  document.getElementById('trendsCard').style.display = 'block';
 
   const activeMonth = document.getElementById('monthPicker').value;
-  const incomeArr = [], expenseArr = [];
-  monthsAsc.forEach(month => {
-    const c = computeMonth(state.months[month]);
-    incomeArr.push(c.totalIncomeILS);
-    expenseArr.push(c.totalExpensesILS);
-  });
 
   const monthsDesc = [...monthsAsc].reverse();
   monthsDesc.forEach(month => {
@@ -978,21 +995,113 @@ function renderHistory() {
     list.appendChild(card);
   });
 
+  renderCharts(monthsAsc);
+}
+
+function renderCharts(monthsAsc) {
+  const incomeArr = [], expenseArr = [], netArr = [];
+  monthsAsc.forEach(month => {
+    const c = computeMonth(state.months[month]);
+    incomeArr.push(Math.round(c.totalIncomeILS));
+    expenseArr.push(Math.round(c.totalExpensesILS));
+    netArr.push(Math.round(c.netILS));
+  });
+
   const ctx = document.getElementById('historyChart').getContext('2d');
+  const incomeGradient = ctx.createLinearGradient(0, 0, 0, 280);
+  incomeGradient.addColorStop(0, '#6d5bd0');
+  incomeGradient.addColorStop(1, '#4338ca');
+  const expenseGradient = ctx.createLinearGradient(0, 0, 0, 280);
+  expenseGradient.addColorStop(0, '#fbbf24');
+  expenseGradient.addColorStop(1, '#f5b040');
+
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
-    type: 'bar',
     data: {
       labels: monthsAsc.map(monthLabel),
       datasets: [
-        { label: 'הכנסות (ש"ח)', data: incomeArr, backgroundColor: '#4338ca', borderRadius: 6 },
-        { label: 'הוצאות (ש"ח)', data: expenseArr, backgroundColor: '#f5b040', borderRadius: 6 }
+        { type: 'bar', label: 'הכנסות (ש"ח)', data: incomeArr, backgroundColor: incomeGradient, borderRadius: 8, maxBarThickness: 42, order: 2 },
+        { type: 'bar', label: 'הוצאות (ש"ח)', data: expenseArr, backgroundColor: expenseGradient, borderRadius: 8, maxBarThickness: 42, order: 2 },
+        {
+          type: 'line', label: 'יתרה נטו (ש"ח)', data: netArr, order: 1,
+          borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.12)',
+          borderWidth: 2.5, tension: 0.35, fill: true,
+          pointBackgroundColor: '#059669', pointRadius: 4, pointHoverRadius: 6,
+          yAxisID: 'y'
+        }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, grid: { color: '#eef0f5' } }, x: { grid: { display: false } } },
-      plugins: { legend: { labels: { font: { family: 'Assistant' } } } }
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { grid: { color: '#eef0f5' }, ticks: { font: { family: 'Assistant' } } },
+        x: { grid: { display: false }, ticks: { font: { family: 'Assistant' } } }
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Assistant', size: 11.5 }, usePointStyle: true, boxWidth: 8 } },
+        tooltip: {
+          backgroundColor: '#1b2430', padding: 10, cornerRadius: 8,
+          titleFont: { family: 'Assistant', weight: '700' }, bodyFont: { family: 'Assistant' },
+          callbacks: { label: (item) => `${item.dataset.label}: ${item.parsed.y.toLocaleString('he-IL')} ₪` }
+        }
+      }
+    }
+  });
+
+  // Aggregate all-time expense items by name for the breakdown doughnut
+  const byName = {};
+  Object.values(state.months).forEach(m => {
+    (m.items || []).forEach(it => {
+      const key = (it.name || 'אחר').trim();
+      byName[key] = (byName[key] || 0) + (parseFloat(it.amount) || 0);
+    });
+  });
+  const sortedEntries = Object.entries(byName).sort((a, b) => b[1] - a[1]);
+  const breakdownEmptyEl = document.getElementById('breakdownEmpty');
+  const breakdownCanvas = document.getElementById('breakdownChart');
+
+  if (sortedEntries.length === 0) {
+    if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
+    breakdownCanvas.style.display = 'none';
+    breakdownEmptyEl.style.display = 'block';
+    return;
+  }
+  breakdownCanvas.style.display = 'block';
+  breakdownEmptyEl.style.display = 'none';
+
+  const topEntries = sortedEntries.slice(0, 7);
+  const otherTotal = sortedEntries.slice(7).reduce((s, [, v]) => s + v, 0);
+  if (otherTotal > 0) topEntries.push(['אחר', otherTotal]);
+
+  const palette = ['#4338ca', '#6d5bd0', '#f5b040', '#059669', '#dc2626', '#0891b2', '#c026d3', '#94a3b8'];
+  const bCtx = breakdownCanvas.getContext('2d');
+  if (breakdownChart) breakdownChart.destroy();
+  breakdownChart = new Chart(bCtx, {
+    type: 'doughnut',
+    data: {
+      labels: topEntries.map(([name]) => name),
+      datasets: [{
+        data: topEntries.map(([, v]) => Math.round(v)),
+        backgroundColor: palette,
+        borderColor: '#fff',
+        borderWidth: 2,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '62%',
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Assistant', size: 11 }, usePointStyle: true, boxWidth: 8, padding: 10 } },
+        tooltip: {
+          backgroundColor: '#1b2430', padding: 10, cornerRadius: 8,
+          titleFont: { family: 'Assistant', weight: '700' }, bodyFont: { family: 'Assistant' },
+          callbacks: { label: (item) => `${item.label}: ${item.parsed.toLocaleString('he-IL')} ₪` }
+        }
+      }
     }
   });
 }
