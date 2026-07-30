@@ -211,6 +211,33 @@
   .conn-status { font-size: 12.5px; margin-top: 12px; padding: 10px 12px; border-radius: 9px; }
   .conn-status.on { background: var(--good-soft); color: var(--good); border: 1px solid #bfe8cf; }
   .conn-status.off { background: var(--warn-soft); color: var(--warn); border: 1px solid #f0d9a6; }
+
+  .month-card { border: 1px solid var(--border); border-radius: 12px; margin-top: 10px; overflow: hidden; }
+  .month-card.is-current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .month-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; cursor: pointer; background: #fbfbfd; flex-wrap: wrap;
+  }
+  .month-head:hover { background: var(--accent-soft); }
+  .month-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .month-badge {
+    font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+    background: var(--accent); color: #fff;
+  }
+  .month-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .month-stats b { color: var(--ink); }
+  .month-chevron { transition: transform .2s ease; color: var(--muted); font-size: 13px; }
+  .month-card.open .month-chevron { transform: rotate(180deg); }
+  .month-body { display: none; padding: 14px 16px; border-top: 1px solid var(--border); }
+  .month-card.open .month-body { display: block; }
+  .month-section-title { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 6px; }
+  .month-section-title:first-child { margin-top: 0; }
+  .line-item { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  .line-item:last-child { border-bottom: none; }
+  .line-item .li-name { color: var(--ink); }
+  .line-item .li-notes { color: var(--muted); font-size: 11.5px; display: block; }
+  .line-item.is-paid { opacity: .55; text-decoration: line-through; }
+  .month-actions { display: flex; gap: 6px; margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -382,21 +409,7 @@
   <div class="card full">
     <h2><span class="dot"></span>היסטוריה חודשית</h2>
     <div id="historyEmpty" class="muted">עדיין אין נתונים שמורים — הזן חודש ראשון למעלה.</div>
-    <table id="historyTable" style="display:none;">
-      <thead>
-        <tr>
-          <th>חודש</th>
-          <th>הכנסות (ש"ח)</th>
-          <th>הוצאות (ש"ח)</th>
-          <th>יתרה</th>
-          <th>נדרש להעביר (RMB)</th>
-          <th>הועבר בפועל (ש"ח)</th>
-          <th>פער</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="historyBody"></tbody>
-    </table>
+    <div id="historyList"></div>
     <div style="margin-top:16px;">
       <canvas id="historyChart"></canvas>
     </div>
@@ -872,44 +885,97 @@ async function deleteMonth(month) {
   renderHistory();
 }
 
-function renderHistory() {
-  const months = Object.keys(state.months).sort();
-  const table = document.getElementById('historyTable');
-  const empty = document.getElementById('historyEmpty');
-  const tbody = document.getElementById('historyBody');
-  tbody.innerHTML = '';
+const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+let expandedMonths = new Set();
 
-  if (months.length === 0) {
-    table.style.display = 'none';
+function monthLabel(monthStr) {
+  const parts = monthStr.split('-');
+  const y = parseInt(parts[0], 10), mo = parseInt(parts[1], 10);
+  if (!y || !mo) return monthStr;
+  return `${HEB_MONTHS[mo-1]} ${y}`;
+}
+
+function toggleMonthCard(month) {
+  if (expandedMonths.has(month)) expandedMonths.delete(month); else expandedMonths.add(month);
+  renderHistory();
+}
+
+function renderHistory() {
+  const monthsAsc = Object.keys(state.months).sort();
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  list.innerHTML = '';
+
+  if (monthsAsc.length === 0) {
     empty.style.display = 'block';
     if (chart) { chart.destroy(); chart = null; }
     return;
   }
   empty.style.display = 'none';
-  table.style.display = 'table';
 
+  const activeMonth = document.getElementById('monthPicker').value;
   const incomeArr = [], expenseArr = [];
-
-  months.forEach(month => {
-    const m = state.months[month];
-    const c = computeMonth(m);
+  monthsAsc.forEach(month => {
+    const c = computeMonth(state.months[month]);
     incomeArr.push(c.totalIncomeILS);
     expenseArr.push(c.totalExpensesILS);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${month}</td>
-      <td>${fmt(c.totalIncomeILS)}</td>
-      <td>${fmt(c.totalExpensesILS)} <span class="muted" style="font-size:11px;">(${c.itemCount} פריטים)</span></td>
-      <td class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)}</td>
-      <td>${fmt(c.neededRMB)}</td>
-      <td>${m.transferredIls ? fmt(c.transferred) : '—'}</td>
-      <td class="${m.transferredIls ? (c.diff>=0?'pos':'neg') : ''}">${m.transferredIls ? fmt(c.diff) : '—'}</td>
-      <td style="white-space:nowrap;">
-        <button class="small-secondary" onclick="loadMonthToForm('${month}')">ערוך</button>
-        <button class="danger" onclick="deleteMonth('${month}')">מחק</button>
-      </td>
+  });
+
+  const monthsDesc = [...monthsAsc].reverse();
+  monthsDesc.forEach(month => {
+    const m = state.months[month];
+    const c = computeMonth(m);
+    const isOpen = expandedMonths.has(month);
+    const isCurrent = month === activeMonth;
+
+    const itemsHtml = (m.items || []).map(it => `
+      <div class="line-item ${it.paid ? 'is-paid' : ''}">
+        <span class="li-name">${escapeHtml(it.name)}${it.notes ? `<span class="li-notes">${escapeHtml(it.notes)}</span>` : ''}</span>
+        <span>${fmt(it.amount)} ₪${it.paid ? ' · ירד' : ''}</span>
+      </div>
+    `).join('') || '<div class="muted" style="font-size:12.5px;">אין פריטים</div>';
+
+    const reimbHtml = (m.reimbursements && m.reimbursements.length)
+      ? (m.reimbursements || []).map(it => `
+          <div class="line-item">
+            <span class="li-name">${escapeHtml(it.name)}${it.notes ? `<span class="li-notes">${escapeHtml(it.notes)}</span>` : ''}</span>
+            <span class="pos">+${fmt(it.amount)} ₪</span>
+          </div>
+        `).join('')
+      : '';
+
+    const card = document.createElement('div');
+    card.className = 'month-card' + (isOpen ? ' open' : '') + (isCurrent ? ' is-current' : '');
+    card.innerHTML = `
+      <div class="month-head" onclick="toggleMonthCard('${month}')">
+        <div class="month-title">
+          ${monthLabel(month)}
+          ${isCurrent ? '<span class="month-badge">בטופס כרגע</span>' : ''}
+        </div>
+        <div class="month-stats">
+          <span>הכנסות: <b>${fmt(c.totalIncomeILS)} ₪</b></span>
+          <span>הוצאות: <b>${fmt(c.totalExpensesILS)} ₪</b></span>
+          <span>יתרה: <b class="${c.netILS>=0?'pos':'neg'}">${fmt(c.netILS)} ₪</b></span>
+          <span>נדרש להעביר: <b>${fmt(c.neededRMB)} RMB</b></span>
+        </div>
+        <span class="month-chevron">▾</span>
+      </div>
+      <div class="month-body">
+        <div class="month-section-title">הוצאות / הורדות (${c.itemCount})</div>
+        ${itemsHtml}
+        ${reimbHtml ? `<div class="month-section-title">החזרים צפויים</div>${reimbHtml}` : ''}
+        <div class="month-section-title">סיכום</div>
+        <div class="line-item"><span class="li-name">יתרה בבנק בישראל</span><span class="${c.bankBalanceILS>=0?'':'neg'}">${fmt(c.bankBalanceILS)} ₪</span></div>
+        <div class="line-item"><span class="li-name">עדיין פתוח (לא ירד)</span><span>${fmt(c.pendingILS)} ₪</span></div>
+        <div class="line-item"><span class="li-name">נדרש להעביר</span><span><b>${fmt(c.neededRMB)} RMB</b></span></div>
+        ${m.transferredIls ? `<div class="line-item"><span class="li-name">הועבר בפועל</span><span>${fmt(c.transferred)} ₪</span></div>` : ''}
+        <div class="month-actions">
+          <button class="small-secondary" onclick="event.stopPropagation(); loadMonthToForm('${month}')">ערוך</button>
+          <button class="danger" onclick="event.stopPropagation(); deleteMonth('${month}')">מחק</button>
+        </div>
+      </div>
     `;
-    tbody.appendChild(tr);
+    list.appendChild(card);
   });
 
   const ctx = document.getElementById('historyChart').getContext('2d');
@@ -917,7 +983,7 @@ function renderHistory() {
   chart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: months,
+      labels: monthsAsc.map(monthLabel),
       datasets: [
         { label: 'הכנסות (ש"ח)', data: incomeArr, backgroundColor: '#4338ca', borderRadius: 6 },
         { label: 'הוצאות (ש"ח)', data: expenseArr, backgroundColor: '#f5b040', borderRadius: 6 }
