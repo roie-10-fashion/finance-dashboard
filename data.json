@@ -72,6 +72,63 @@
         "usdIls": 3.06,
         "usdCny": 6.76
       }
+    },
+    "2026-09": {
+      "month": "2026-09",
+      "items": [
+        {
+          "name": "מחסן",
+          "amount": 520,
+          "notes": "",
+          "paid": false
+        },
+        {
+          "name": "מכבי קופ״ח",
+          "amount": 130,
+          "notes": "",
+          "paid": false
+        },
+        {
+          "name": "ביטוח רפואי הראל",
+          "amount": 502,
+          "notes": "",
+          "paid": false
+        },
+        {
+          "name": "כרטיס אשראי",
+          "amount": 20,
+          "notes": "6301",
+          "paid": false
+        },
+        {
+          "name": "כרטיס אשראי",
+          "amount": 250,
+          "notes": "9815",
+          "paid": false
+        },
+        {
+          "name": "כרטיס אשראי",
+          "amount": 800,
+          "notes": "3267",
+          "paid": false
+        }
+      ],
+      "reimbursements": [
+        {
+          "name": "החזר מחסן",
+          "amount": 370,
+          "notes": ""
+        }
+      ],
+      "salaryRmb": 0,
+      "salaryUsd": 0,
+      "salaryIls": 0,
+      "transferredIls": 0,
+      "bankBalanceIls": 0,
+      "ratesAtSave": {
+        "usdIls": 3.06,
+        "usdCny": 6.76
+      }
     }
   }
 }
